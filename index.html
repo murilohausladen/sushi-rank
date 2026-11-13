@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0d1713">
+<title>Sushi Rank</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Ccircle cx='15' cy='15' r='14' fill='%2324493a'/%3E%3Ccircle cx='15' cy='15' r='10' fill='%23f5f6f0'/%3E%3Ccircle cx='15' cy='15' r='5.2' fill='%23ff6b57'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Rubik:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column made for a phone held over a table of plates.
+   Live counter on top, ranking below. When the host ends the count, a dark
+   stage with a three-step podium replaces both. */
+:root {
+  --bg: #f2f5ef;
+  --surface: #ffffff;
+  --surface-2: #e6ebe2;
+  --fg: #12201a;
+  --muted: #566860;
+  --line: #d3dacf;
+  --salmon: #ff6b57;
+  --tamago: #f2b134;
+  --wasabi: #8fc13d;
+  --ink-on-accent: #1a0f0b;
+  --stage-bg: #0d1713;
+  --stage-fg: #f2f5ef;
+  --stage-muted: #9db3a7;
+  --font-display: "Bowlby One", "Rubik", system-ui, sans-serif;
+  --font-body: "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1713;
+    --surface: #15251e;
+    --surface-2: #1e3329;
+    --fg: #eef3ec;
+    --muted: #9db3a7;
+    --line: #2b433a;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.4;
+  min-height: 100vh;
+  padding-top: max(14px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(48px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#app { max-width: 540px; margin-inline: auto; display: flex; flex-direction: column; gap: 16px; }
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+button:focus-visible, input:focus-visible, .pick:focus-within { outline: 3px solid var(--tamago); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+/* header */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 22px; letter-spacing: .01em; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.pill.live .dot { background: var(--wasabi); animation: pulse 1.6s ease-in-out infinite; }
+.pill.ended .dot { background: var(--tamago); }
+.pill.off .dot { background: var(--salmon); }
+@keyframes pulse { 50% { opacity: .35; transform: scale(.8); } }
+.note { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 14px; }
+
+/* cards */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 20px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h1, h2 { margin: 0; text-wrap: balance; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 1.1; }
+
+/* avatar */
+.avatar { width: var(--s, 44px); height: var(--s, 44px); border-radius: 50%; flex: none; overflow: hidden; display: grid; place-items: center; background: var(--c); color: var(--ink-on-accent); font-family: var(--font-display); font-size: calc(var(--s, 44px) * .42); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* join form */
+.join-card { display: flex; flex-direction: column; gap: 18px; }
+.join-card p { margin: 0; color: var(--muted); font-size: 15px; }
+.pick { align-self: center; width: 116px; height: 116px; border-radius: 50%; border: 2px dashed var(--line); background: var(--bg); display: grid; place-items: center; cursor: pointer; overflow: hidden; position: relative; color: var(--muted); font-size: 13px; font-weight: 600; text-align: center; }
+.pick .ph { display: grid; place-items: center; gap: 4px; }
+.pick img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input, .pinrow input { height: 50px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 0 14px; font: inherit; font-size: 16px; min-width: 0; }
+.btn { height: 52px; border-radius: 14px; border: 0; font-weight: 700; font-size: 16px; padding: 0 18px; }
+.btn.primary { background: var(--salmon); color: var(--ink-on-accent); }
+.btn.ghost { background: transparent; border: 1px solid var(--line); }
+.btn:disabled { opacity: .5; }
+.btn:active { transform: scale(.98); }
+
+/* counter */
+.counter { display: flex; flex-direction: column; gap: 14px; }
+.me-row { display: flex; align-items: center; gap: 12px; }
+.me-row .names { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.me-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-row small { color: var(--muted); }
+.link { background: none; border: 0; padding: 8px 4px; color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.big { text-align: center; padding-block: 4px; }
+.big .n { font-family: var(--font-display); font-size: clamp(92px, 30vw, 140px); line-height: 1; font-variant-numeric: tabular-nums; }
+.big .unit { margin-top: 2px; }
+.pos { text-align: center; color: var(--muted); font-size: 15px; margin: 0; }
+.pad { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; }
+.pad button { height: 92px; border-radius: 22px; border: 0; font-family: var(--font-display); font-size: 44px; line-height: 1; user-select: none; -webkit-user-select: none; }
+.pad .minus { background: var(--surface-2); color: var(--fg); }
+.pad .plus { background: var(--salmon); color: var(--ink-on-accent); }
+.pad button:active { transform: scale(.96); }
+
+/* ranking */
+.rank-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.rank-head .total { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.row { position: relative; display: grid; grid-template-columns: 32px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.row::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); background: rgba(255, 107, 87, .16); transition: width .35s ease; }
+.row > * { position: relative; }
+.row.me { border-color: var(--salmon); box-shadow: 0 0 0 1px var(--salmon); }
+.badge { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface-2); color: var(--muted); }
+.badge.r1 { background: var(--salmon); color: var(--ink-on-accent); }
+.badge.r2 { background: var(--tamago); color: var(--ink-on-accent); }
+.badge.r3 { background: var(--wasabi); color: var(--ink-on-accent); }
+.row .who { min-width: 0; display: flex; flex-direction: column; }
+.row .who strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .who small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .num { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.empty { padding: 22px 16px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); text-align: center; font-size: 15px; }
+
+/* host */
+.hostlink { text-align: center; }
+.host { display: flex; flex-direction: column; gap: 12px; border-style: dashed; }
+.host p { margin: 0; color: var(--muted); font-size: 14px; }
+.host .actions, .pinrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.host .actions .btn { flex: 1 1 140px; }
+.pinrow input { flex: 1 1 140px; text-transform: uppercase; letter-spacing: .12em; }
+.pinrow .btn { flex: 0 0 auto; }
+.btn.danger { background: var(--fg); color: var(--bg); }
+
+/* stage */
+.stage { color: var(--stage-fg); background: radial-gradient(120% 70% at 50% 0%, #21463a 0%, var(--stage-bg) 62%); border: 1px solid #2b433a; border-radius: 28px; padding: 26px 14px 22px; display: flex; flex-direction: column; gap: 20px; }
+.stage .head { text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.stage .eyebrow { color: var(--stage-muted); }
+.stage h1 { font-size: clamp(34px, 10vw, 48px); }
+.podium { display: flex; justify-content: center; align-items: flex-end; gap: 10px; min-height: 260px; }
+.slot { flex: 0 1 164px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.slot .who { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; animation: fadeup .6s ease var(--d2, 0s) both; }
+.slot .who strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.slot .crown { width: 34px; height: 24px; }
+.block { width: 100%; height: var(--h); background: var(--bc); color: var(--ink-on-accent); border-radius: 16px 16px 0 0; padding-top: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; overflow: hidden; animation: rise .9s cubic-bezier(.2, .9, .25, 1) var(--d1, 0s) both; }
+.block .pos-n { font-family: var(--font-display); font-size: 40px; line-height: 1; }
+.block .score { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+@keyframes rise { from { height: 0; } }
+@keyframes fadeup { from { opacity: 0; transform: translateY(12px); } }
+.winner-line { text-align: center; margin: 0; font-size: 16px; animation: fadeup .6s ease 3.2s both; }
+.winner-line b { font-family: var(--font-display); font-weight: 400; color: var(--tamago); }
+.stage .row { background: #15251e; border-color: #2b433a; color: var(--stage-fg); }
+.stage .row .who small { color: var(--stage-muted); }
+.stage .badge { background: #1e3329; color: var(--stage-muted); }
+.stage .rank-head .total, .stage .eyebrow { color: var(--stage-muted); }
+.stage .mine { text-align: center; margin: 0; color: var(--stage-muted); font-size: 15px; }
+.stage .host { border-color: #2b433a; }
+.stage .host p { color: var(--stage-muted); }
+.stage .btn.ghost { border-color: #3a5a4c; color: var(--stage-fg); }
+.stage .empty { color: var(--stage-muted); border-color: #2b433a; }
+
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; max-width: min(92vw, 420px); z-index: 30; }
+
+@media (prefers-reduced-motion: reduce) {
+  .block, .slot .who, .winner-line, .pill.live .dot { animation: none; }
+  .row::before { transition: none; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <circle cx="15" cy="15" r="14" fill="#24493a" stroke="#2b433a" stroke-width="1"/>
+        <circle cx="15" cy="15" r="10" fill="#f5f6f0"/>
+        <circle cx="15" cy="15" r="5.2" fill="#ff6b57"/>
+      </svg>
+      <span>Sushi Rank</span>
+    </div>
+    <div id="pill" class="pill"><span class="dot"></span><span id="pill-text">Conectando</span></div>
+  </header>
+
+  <p id="note" class="note" hidden></p>
+
+  <section id="loading" class="card">
+    <p class="eyebrow">Preparando a mesa</p>
+    <p style="margin:8px 0 0;color:var(--muted)">Buscando o ranking da galera.</p>
+    <noscript><p style="margin:8px 0 0">Ative o JavaScript para usar o app.</p></noscript>
+  </section>
+
+  <section id="join" class="card join-card" hidden>
+    <div>
+      <p class="eyebrow" id="join-eyebrow">Sua vez</p>
+      <h1 id="join-title">Entre na mesa</h1>
+    </div>
+    <p>Seu nome aparece no ranking. Se criar um apelido, ele aparece no lugar.</p>
+    <form id="form" style="display:flex;flex-direction:column;gap:18px" autocomplete="off">
+      <label class="pick" for="f-photo">
+        <input id="f-photo" class="sr" type="file" accept="image/*">
+        <span class="ph" id="pick-ph">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          Foto
+        </span>
+        <img id="pick-img" alt="" hidden>
+      </label>
+      <div class="field">
+        <label for="f-name">Nome</label>
+        <input id="f-name" type="text" maxlength="18" placeholder="Como te chamam" required>
+      </div>
+      <div class="field">
+        <label for="f-nick">Apelido (opcional)</label>
+        <input id="f-nick" type="text" maxlength="14" placeholder="Ex.: Rei do Salmão">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="f-submit" class="btn primary" type="submit">Entrar na mesa</button>
+        <button id="f-cancel" class="btn ghost" type="button">Só acompanhar</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="play" hidden>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div id="counter" class="card counter" hidden>
+        <div class="me-row">
+          <div id="me-avatar"></div>
+          <div class="names"><strong id="me-name"></strong><small id="me-sub"></small></div>
+          <button id="edit-btn" class="link" type="button">Editar perfil</button>
+        </div>
+        <div class="big">
+          <div class="n" id="my-count" aria-live="polite">0</div>
+          <p class="eyebrow unit">peças</p>
+        </div>
+        <p class="pos" id="my-pos"></p>
+        <div class="pad">
+          <button id="minus" class="minus" type="button" aria-label="Tirar uma peça">−</button>
+          <button id="plus" class="plus" type="button" aria-label="Adicionar uma peça">+</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="rank-head">
+          <h2 class="eyebrow">Ranking ao vivo</h2>
+          <span class="total" id="total"></span>
+        </div>
+        <ol id="rows" class="rows"></ol>
+      </div>
+
+      <div id="host" class="hostlink"></div>
+    </div>
+  </section>
+
+  <section id="stage" class="stage" hidden>
+    <div class="head">
+      <p class="eyebrow">Contagem encerrada</p>
+      <h1>Pódio</h1>
+      <span class="total" id="stage-total" style="font-size:13px"></span>
+    </div>
+    <div class="podium" id="podium"></div>
+    <p class="winner-line" id="winner-line"></p>
+    <p class="mine" id="stage-mine"></p>
+    <div id="stage-rest" hidden>
+      <div class="rank-head"><h2 class="eyebrow">Resto da mesa</h2></div>
+      <ol id="rest-rows" class="rows"></ol>
+    </div>
+    <div id="stage-host" class="card host" hidden>
+      <p class="eyebrow">Anfitrião</p>
+      <div class="actions"><button id="reopen" class="btn ghost" type="button">Reabrir contagem</button></div>
+    </div>
+  </section>
+</div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
