@@ -326,7 +326,11 @@
         img.src = url;
       }
       if (window.createImageBitmap) {
-        createImageBitmap(file, { imageOrientation: 'from-image' }).then(function (b) { draw(b, b.width, b.height); }).catch(viaImg);
+        // 1) respeitando a rotação do EXIF, 2) sem opções (navegadores que não aceitam), 3) via <img>
+        createImageBitmap(file, { imageOrientation: 'from-image' })
+          .catch(function () { return createImageBitmap(file); })
+          .then(function (b) { draw(b, b.width, b.height); })
+          .catch(viaImg);
       } else viaImg();
     });
   }
@@ -354,8 +358,12 @@
   }
 
   $('#f-photo').addEventListener('change', function (e) {
-    var f = e.target.files && e.target.files[0]; if (!f) return;
-    readPhoto(f).then(function (d) { photoData = d; setPickPreview(d); }).catch(function () { toast('Não consegui abrir essa foto.'); });
+    var input = e.target;
+    var f = input.files && input.files[0]; if (!f) return;
+    readPhoto(f).then(function (d) { photoData = d; setPickPreview(d); }).catch(function () {
+      var heic = /hei[cf]/i.test((f.type || '') + ' ' + (f.name || ''));
+      toast(heic ? 'Esse formato de foto (HEIC) não abre aqui. Tire a foto pela câmera ou escolha um JPG ou PNG.' : 'Não consegui abrir essa foto. Tente outra ou tire pela câmera.');
+    }).then(function () { try { input.value = ''; } catch (err) {} });
   });
   $('#f-cancel').addEventListener('click', function () {
     if (editing) { editing = false; resetJoinLabels(); } else spectating = true;
