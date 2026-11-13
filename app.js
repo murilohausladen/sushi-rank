@@ -29,7 +29,7 @@
   var cred = null;
   try { cred = JSON.parse(lsGet('sushi.cred') || 'null'); } catch (e) { cred = null; }
   var hostPin = lsGet('sushi.pin') || '';
-  var isHost = false, showPin = false, confirmEnd = false, hostSig = '';
+  var isHost = false, showPin = false, confirmEnd = false, hostSig = '', removingId = null;
 
   var players = [], game = { status: 'live' };
   var loaded = false, failed = false, online = true;
@@ -68,13 +68,32 @@
     return list;
   }
 
-  function rowEl(p, max, isMe) {
+  function rowEl(p, max, isMe, removable) {
     var w = max > 0 ? Math.max(4, Math.round(p.count / max * 100)) : 0;
+    var asking = removable && removingId === p.id;
+    var who = asking
+      ? h('div', { class: 'who' }, h('strong', null, 'Remover da mesa?'), h('small', null, dn(p)))
+      : h('div', { class: 'who' }, h('strong', null, dn(p)), (p.nick && p.name) ? h('small', null, p.name) : null);
+    var end = h('div', { class: 'end' });
+    if (asking) {
+      var yes = h('button', { class: 'mini danger', type: 'button', 'aria-label': 'Confirmar remoção de ' + dn(p) }, 'Sim');
+      yes.addEventListener('click', function () { removePlayer(p.id); });
+      var no = h('button', { class: 'mini', type: 'button' }, 'Não');
+      no.addEventListener('click', function () { removingId = null; render(); });
+      end.append(yes, no);
+    } else {
+      end.append(h('span', { class: 'num' }, String(p.count)));
+      if (removable) {
+        var x = h('button', { class: 'mini x', type: 'button', 'aria-label': 'Remover ' + dn(p) }, '×');
+        x.addEventListener('click', function () { removingId = p.id; render(); });
+        end.append(x);
+      }
+    }
     return h('li', { class: 'row' + (isMe ? ' me' : ''), style: '--w:' + w + '%' },
       h('span', { class: 'badge r' + Math.min(p.rank, 4) }, max > 0 ? p.rank + 'º' : '·'),
       avatar(p, 40),
-      h('div', { class: 'who' }, h('strong', null, dn(p)), (p.nick && p.name) ? h('small', null, p.name) : null),
-      h('span', { class: 'num' }, String(p.count))
+      who,
+      end
     );
   }
 
@@ -130,7 +149,7 @@
       var max = list.length ? list[0].count : 0;
       var rows = $('#rows'); rows.replaceChildren();
       if (!list.length) rows.append(h('li', { class: 'empty' }, 'Ninguém entrou ainda. Quem entrar primeiro aparece aqui.'));
-      list.forEach(function (p) { rows.append(rowEl(p, max, p.id === myId())); });
+      list.forEach(function (p) { rows.append(rowEl(p, max, p.id === myId(), isHost)); });
       $('#total').textContent = totalTxt;
       renderHost();
     }
@@ -307,6 +326,19 @@
     }
     game = { status: status };
     if (status === 'live') { stageSig = ''; confettiDone = false; }
+    render();
+  }
+
+  async function removePlayer(id) {
+    removingId = null;
+    var res = await sb.rpc('remove_player', { p_pin: hostPin, p_id: id });
+    if (res.error) {
+      if (errText(res.error).indexOf('forbidden') >= 0) { isHost = false; hostPin = ''; lsDel('sushi.pin'); hostSig = ''; toast('PIN do anfitrião não vale mais.'); }
+      else toast('Não consegui remover. Tente de novo.');
+      render(); return;
+    }
+    players = players.filter(function (p) { return p.id !== id; });
+    toast('Removido da mesa.');
     render();
   }
 
