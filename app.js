@@ -288,7 +288,7 @@
       if (i >= 0) {
         if (loaded && n.id !== myId() && n.count > players[i].count) {
           popId = n.id; popDelta = n.count - players[i].count;
-          if (Math.floor(n.count / 10) > Math.floor(players[i].count / 10)) { mileName = dn(n); mileTotal = Math.floor(n.count / 10) * 10; }
+          if (players[i].count < 100 && Math.floor(n.count / 10) > Math.floor(players[i].count / 10)) { mileName = dn(n); mileTotal = Math.min(Math.floor(n.count / 10) * 10, 100); }
         }
         players[i] = n;
       } else players.push(n);
@@ -306,7 +306,7 @@
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
     render();
     if (d > 0) popOwn();
-    if (d > 0 && n % 10 === 0) { var me0 = mine(); milestone(me0 ? dn(me0) : 'Você', n); }
+    if (d > 0 && n % 10 === 0 && n <= 100) { var me0 = mine(); milestone(me0 ? dn(me0) : 'Você', n); }
     clearTimeout(timer);
     timer = setTimeout(flush, 250);
   }
@@ -474,16 +474,11 @@
     var p = players.find(function (x) { return x.id === id; });
     spawnPop(60 + Math.random() * Math.max(40, window.innerWidth - 160), window.innerHeight * 0.3, label, p ? dn(p) : '');
   }
-  var MILE = [
-    function (n, t) { return n + ' chegou a ' + t + ' peças. Pede a conta, garçom!'; },
-    function (n, t) { return t + ' peças de ' + n + '. Alguém segura!'; },
-    function (n, t) { return n + ': ' + t + ' peças e nenhum arrependimento.'; },
-    function (n, t) { return n + ' já está em ' + t + ' peças. O arroz agradece.'; }
-  ];
+  // aviso a cada 10 peças, de 10 até 100
   function milestone(name, total) {
     var box = $('#pops');
     if (!box || document.hidden || game.status !== 'live' || $('.milestone')) return;
-    var el = h('div', { class: 'milestone' }, MILE[(Math.random() * MILE.length) | 0](name, total));
+    var el = h('div', { class: 'milestone' }, name + ' chegou a ' + total + ' peças');
     box.append(el);
     setTimeout(function () { el.remove(); }, 2700);
   }
