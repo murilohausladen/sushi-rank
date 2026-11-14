@@ -179,10 +179,49 @@ h1 { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-h
 .stage .empty { color: var(--stage-muted); border-color: #2b433a; }
 
 #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+
+/* +1 flutuante */
+#pops { position: fixed; inset: 0; pointer-events: none; z-index: 25; overflow: hidden; }
+.pop { position: absolute; display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--salmon); color: var(--ink-on-accent); font-family: var(--font-display); font-size: 24px; line-height: 1.1; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); animation: popup 1.25s ease-out forwards; }
+.pop small { font-family: var(--font-body); font-size: 12px; font-weight: 700; }
+@keyframes popup {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(.6); }
+  15% { opacity: 1; transform: translate(-50%, -80%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -260%) scale(1); }
+}
+@keyframes popfade { 0%, 100% { opacity: 0; } 15%, 70% { opacity: 1; } }
+
+/* boneco do vencedor */
+.dancers { display: flex; justify-content: center; align-items: flex-end; flex-wrap: wrap; gap: 8px 16px; animation: fadeup .6s ease 3.4s both; }
+.dancer { position: relative; width: min(230px, 46%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 40px; }
+.dancers .dancer:only-child { width: min(250px, 72%); }
+.dancer-art { width: 100%; }
+.dancer-art svg { display: block; width: 100%; height: auto; overflow: visible; }
+.dancer-name { font-family: var(--font-display); font-weight: 400; font-size: 15px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bubble { position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: #f5f6f0; color: #12201a; font-family: var(--font-display); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; padding: 8px 14px; border-radius: 14px; white-space: nowrap; animation: shout .5s ease-in-out infinite alternate; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; background: #f5f6f0; transform: translateX(-50%) rotate(45deg); }
+@keyframes shout { to { transform: translateX(-50%) scale(1.06) rotate(-1.5deg); } }
+.dancer-art .dance { animation: bounce .5s ease-in-out infinite; }
+@keyframes bounce { 50% { transform: translateY(-9px); } }
+.dancer-art .sway { animation: sway 1s ease-in-out infinite; }
+@keyframes sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+.dancer-art .leg-l { animation: legl 1s ease-in-out infinite; }
+@keyframes legl { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(14deg); } }
+.dancer-art .leg-r { animation: legr 1s ease-in-out infinite; }
+@keyframes legr { 0%, 100% { transform: rotate(14deg); } 50% { transform: rotate(-12deg); } }
+.dancer-art .arm-l { animation: pump .5s ease-in-out infinite alternate; }
+.dancer-art .arm-r { animation: pump .5s ease-in-out infinite alternate-reverse; }
+@keyframes pump { from { transform: rotate(-12deg); } to { transform: rotate(10deg); } }
+.dancer-art .head { animation: nod .5s ease-in-out infinite alternate; }
+@keyframes nod { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+.dancer-art .finger { animation: poke .25s ease-in-out infinite alternate; }
+@keyframes poke { to { transform: translateY(-3px); } }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; max-width: min(92vw, 420px); z-index: 30; }
 
 @media (prefers-reduced-motion: reduce) {
-  .block, .slot .who, .winner-line, .pill.live .dot { animation: none; }
+  .block, .slot .who, .winner-line, .pill.live .dot, .dancers, .bubble { animation: none; }
+  .dancer-art * { animation: none !important; }
+  .pop { animation: popfade 1.25s linear forwards; transform: translate(-50%, -80%); }
   .row::before { transition: none; }
 }
 </style>
@@ -278,6 +317,7 @@ h1 { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-h
     </div>
     <div class="podium" id="podium"></div>
     <p class="winner-line" id="winner-line"></p>
+    <div class="dancers" id="dancers" hidden></div>
     <p class="mine" id="stage-mine"></p>
     <div id="stage-rest" hidden>
       <div class="rank-head"><h2 class="eyebrow">Resto da mesa</h2></div>
@@ -290,6 +330,7 @@ h1 { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-h
   </section>
 </div>
 <canvas id="confetti" aria-hidden="true"></canvas>
+<div id="pops" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script src="vendor/supabase.js"></script>
