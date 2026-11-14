@@ -540,7 +540,7 @@
       var art = h('div', { class: 'dancer-art' });
       art.innerHTML = DANCER_SVG; // markup fixo, sem dados de usuário
       art.querySelector('.head-slot').append(headNode(p, i));
-      box.append(h('div', { class: 'dancer' }, h('div', { class: 'bubble' }, 'Boa noite, perdedores'), art, h('strong', { class: 'dancer-name' }, dn(p))));
+      box.append(h('div', { class: 'dancer' }, art,h('strong', { class: 'dancer-name' }, dn(p))));
     });
   }
 
