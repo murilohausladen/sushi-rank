@@ -235,7 +235,6 @@
       wl.replaceChildren();
       if (win && win.count > 0) wl.append('Vitória de ', h('b', null, dn(win)), ' com ' + win.count + (win.count === 1 ? ' peça.' : ' peças.'));
       if (!confettiDone && win && win.count > 0) { confettiDone = true; setTimeout(confetti, 2400); }
-      renderDancers(top.filter(function (p) { return p.rank === 1 && p.count > 0; }).slice(0, 3));
     }
     var meR = list.find(function (p) { return p.id === myId(); });
     $('#stage-mine').textContent = meR ? ('Você ficou em ' + meR.rank + 'º com ' + meR.count + (meR.count === 1 ? ' peça.' : ' peças.')) : '';
@@ -279,7 +278,7 @@
     if (m && !dirty && !inFlight) myCount = m.count;
   }
   function applyChange(payload) {
-    var popId = null, popDelta = 0;
+    var popId = null, popDelta = 0, mileName = '', mileTotal = 0;
     if (payload.eventType === 'DELETE') {
       var oid = payload.old && payload.old.id;
       players = players.filter(function (p) { return p.id !== oid; });
@@ -287,12 +286,16 @@
       var n = norm(payload['new']);
       var i = players.findIndex(function (p) { return p.id === n.id; });
       if (i >= 0) {
-        if (loaded && n.id !== myId() && n.count > players[i].count) { popId = n.id; popDelta = n.count - players[i].count; }
+        if (loaded && n.id !== myId() && n.count > players[i].count) {
+          popId = n.id; popDelta = n.count - players[i].count;
+          if (Math.floor(n.count / 10) > Math.floor(players[i].count / 10)) { mileName = dn(n); mileTotal = Math.floor(n.count / 10) * 10; }
+        }
         players[i] = n;
       } else players.push(n);
     }
     syncMine(); render();
     if (popId) popAt(popId, popDelta);
+    if (mileName) milestone(mileName, mileTotal);
   }
 
   function bump(d) {
@@ -303,6 +306,7 @@
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
     render();
     if (d > 0) popOwn();
+    if (d > 0 && n % 10 === 0) { var me0 = mine(); milestone(me0 ? dn(me0) : 'Você', n); }
     clearTimeout(timer);
     timer = setTimeout(flush, 250);
   }
@@ -470,78 +474,23 @@
     var p = players.find(function (x) { return x.id === id; });
     spawnPop(60 + Math.random() * Math.max(40, window.innerWidth - 160), window.innerHeight * 0.3, label, p ? dn(p) : '');
   }
+  var MILE = [
+    function (n, t) { return n + ' chegou a ' + t + ' peças. Pede a conta, garçom!'; },
+    function (n, t) { return t + ' peças de ' + n + '. Alguém segura!'; },
+    function (n, t) { return n + ': ' + t + ' peças e nenhum arrependimento.'; },
+    function (n, t) { return n + ' já está em ' + t + ' peças. O arroz agradece.'; }
+  ];
+  function milestone(name, total) {
+    var box = $('#pops');
+    if (!box || document.hidden || game.status !== 'live' || $('.milestone')) return;
+    var el = h('div', { class: 'milestone' }, MILE[(Math.random() * MILE.length) | 0](name, total));
+    box.append(el);
+    setTimeout(function () { el.remove(); }, 2700);
+  }
   function popOwn() {
     var b = $('#plus'); if (!b) return;
     var r = b.getBoundingClientRect();
     spawnPop(r.left + r.width / 2 + (Math.random() - 0.5) * 70, r.top - 6, '+1');
-  }
-
-  /* ---------- boneco do vencedor ---------- */
-  var SVGNS = 'http://www.w3.org/2000/svg';
-  var OUT = 'stroke="#12201a" stroke-width="2"';
-  function handSvg(x, y) {
-    // punho com o dedo do meio esticado: 3 dedos dobrados em fileira, polegar por cima
-    return '<g transform="translate(' + x + ' ' + y + ')">' +
-      '<rect class="finger" x="-9" y="-66" width="10" height="46" rx="5" fill="#f5f6f0" ' + OUT + '/>' +
-      '<rect x="-18" y="-30" width="36" height="30" rx="11" fill="#f5f6f0" ' + OUT + '/>' +
-      '<rect x="-18" y="-35" width="9" height="13" rx="4.5" fill="#f5f6f0" ' + OUT + '/>' +
-      '<rect x="1" y="-34" width="9" height="12" rx="4.5" fill="#f5f6f0" ' + OUT + '/>' +
-      '<rect x="10" y="-32" width="8" height="10" rx="4" fill="#f5f6f0" ' + OUT + '/>' +
-      '<rect x="-15" y="-14" width="26" height="10" rx="5" fill="#f5f6f0" ' + OUT + '/></g>';
-  }
-  function armSvg(cls, sx, ex) {
-    return '<g class="' + cls + '" style="transform-origin:' + sx + 'px 130px">' +
-      '<line x1="' + sx + '" y1="130" x2="' + ex + '" y2="84" stroke="#12201a" stroke-width="17" stroke-linecap="round"/>' +
-      '<line x1="' + sx + '" y1="130" x2="' + ex + '" y2="84" stroke="#f5f6f0" stroke-width="12" stroke-linecap="round"/>' +
-      handSvg(ex, 84) + '</g>';
-  }
-  function legSvg(cls, hipX) {
-    return '<g class="' + cls + '" style="transform-origin:' + hipX + 'px 200px">' +
-      '<rect x="' + (hipX - 8) + '" y="196" width="16" height="96" rx="8" fill="#3a6b57" ' + OUT + '/>' +
-      '<rect x="' + (hipX - 17) + '" y="286" width="34" height="17" rx="8.5" fill="#f2b134" ' + OUT + '/></g>';
-  }
-  var DANCER_SVG = '<svg viewBox="0 0 220 330" aria-hidden="true" focusable="false">' +
-    '<ellipse cx="110" cy="318" rx="56" ry="8" fill="rgba(0,0,0,.4)"/>' +
-    '<g class="dance">' + legSvg('leg-l', 97) + legSvg('leg-r', 123) +
-    '<g class="sway" style="transform-origin:110px 200px">' +
-    armSvg('arm-l', 86, 34) + armSvg('arm-r', 134, 186) +
-    '<rect x="76" y="112" width="68" height="96" rx="26" fill="#ff6b57" ' + OUT + '/>' +
-    '<g class="head head-slot" style="transform-origin:110px 112px"></g>' +
-    '</g></g></svg>';
-
-  function sv(tag, attrs) {
-    var e = document.createElementNS(SVGNS, tag);
-    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-    return e;
-  }
-  function headNode(p, i) {
-    var g = sv('g'), cid = 'hc' + i;
-    var defs = sv('defs'), cp = sv('clipPath', { id: cid });
-    cp.append(sv('circle', { cx: 110, cy: 64, r: 42 })); defs.append(cp); g.append(defs);
-    g.append(sv('rect', { x: 100, y: 100, width: 20, height: 18, rx: 6, fill: '#f5f6f0' }));
-    g.append(sv('circle', { cx: 110, cy: 64, r: 46, fill: PAL[hash(p.id) % PAL.length], stroke: '#f5f6f0', 'stroke-width': 5 }));
-    if (okPhoto(p.photo) && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p.photo)) {
-      var im = sv('image', { x: 68, y: 22, width: 84, height: 84, preserveAspectRatio: 'xMidYMid slice', 'clip-path': 'url(#' + cid + ')' });
-      im.setAttribute('href', p.photo);
-      im.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', p.photo);
-      g.append(im);
-    } else {
-      var t = sv('text', { x: 110, y: 80, 'text-anchor': 'middle', 'font-size': 46, fill: '#1a0f0b', 'font-family': 'Bowlby One, Rubik, sans-serif' });
-      t.textContent = (dn(p).charAt(0) || '?').toUpperCase();
-      g.append(t);
-    }
-    return g;
-  }
-  function renderDancers(winners) {
-    var box = $('#dancers');
-    box.replaceChildren();
-    box.hidden = !winners.length;
-    winners.forEach(function (p, i) {
-      var art = h('div', { class: 'dancer-art' });
-      art.innerHTML = DANCER_SVG; // markup fixo, sem dados de usuário
-      art.querySelector('.head-slot').append(headNode(p, i));
-      box.append(h('div', { class: 'dancer' }, art,h('strong', { class: 'dancer-name' }, dn(p))));
-    });
   }
 
   /* ---------- confetti ---------- */
