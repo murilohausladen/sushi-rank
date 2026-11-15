@@ -19,8 +19,9 @@ Os scripts estão em `supabase/`:
 1. `001_schema.sql`: tabelas, regras de acesso, funções e Realtime.
 2. `002_host_pin.sql`: modelo para definir o PIN do anfitrião (troque o valor antes de rodar).
 3. `003_remove_player.sql`: função para o anfitrião remover participantes (exige o PIN).
+4. `004_pieces_log.sql`: histórico de cada mudança de contagem com horário, preenchido por gatilho. Alimenta o gráfico "Peças por horário" do pódio.
 
-Para usar outro projeto Supabase, rode os três scripts nele e troque `SB_URL` e `SB_KEY` no começo de `app.js` pela URL e pela chave `anon` do novo projeto.
+Para usar outro projeto Supabase, rode os quatro scripts nele e troque `SB_URL` e `SB_KEY` no começo de `app.js` pela URL e pela chave `anon` do novo projeto.
 
 ## Publicação
 

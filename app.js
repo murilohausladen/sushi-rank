@@ -243,6 +243,8 @@
     var rr = $('#rest-rows'); rr.replaceChildren();
     var max = list.length ? list[0].count : 0;
     rest.forEach(function (p) { rr.append(rowEl(p, max, p.id === myId())); });
+    $('#stage-chart').hidden = !list.length;
+    if (list.length) renderChart(list);
     $('#stage-host').hidden = !isHost;
   }
 
@@ -272,6 +274,7 @@
     }
     render();
     pending.splice(0).forEach(function (x) { popAt(x[0], x[1]); });
+    if (loaded && game.status === 'ended') loadLog();
   }
   function syncMine() {
     var m = mine();
@@ -488,6 +491,116 @@
     spawnPop(r.left + r.width / 2 + (Math.random() - 0.5) * 70, r.top - 6, '+1');
   }
 
+  /* ---------- gráfico: peças por horário ---------- */
+  var CH = ['#ff6b57', '#f2b134', '#8fc13d', '#6fc3df', '#c39bf2', '#f59ac0', '#5fd4b0', '#f5f6f0'];
+  var logRows = [], chartState = 'loading', logBusy = false, chartSig = '';
+
+  async function loadLog() {
+    if (logBusy || !sb) return;
+    logBusy = true;
+    try {
+      var all = [];
+      for (var page = 0; page < 5; page++) {
+        var res = await sb.from('pieces_log').select('player_id,pieces,at').order('id', { ascending: true }).range(page * 1000, page * 1000 + 999);
+        if (res.error) throw res.error;
+        all = all.concat(res.data);
+        if (res.data.length < 1000) break;
+      }
+      logRows = all.map(function (r) { return { pid: r.player_id, v: r.pieces | 0, t: Date.parse(r.at) }; })
+        .filter(function (r) { return r.t === r.t; });
+      chartState = 'ok';
+    } catch (e) {
+      if (chartState !== 'ok') chartState = 'error';
+    }
+    logBusy = false;
+    if (game.status === 'ended') render();
+  }
+
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+  function niceStep(max, maxTicks) {
+    var steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500];
+    for (var i = 0; i < steps.length; i++) if (max / steps[i] <= maxTicks) return steps[i];
+    return 1000;
+  }
+  function hhmm(t) {
+    var d = new Date(t);
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  function timeTicks(t0, t1) {
+    var span = (t1 - t0) / 60000;
+    var steps = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360];
+    var step = steps[steps.length - 1];
+    for (var i = 0; i < steps.length; i++) if (span / steps[i] <= 5) { step = steps[i]; break; }
+    var off = -new Date(t0).getTimezoneOffset();
+    var first = Math.ceil((t0 / 60000 + off) / step) * step - off;
+    var out = [];
+    for (var m = first; m * 60000 <= t1; m += step) out.push(m * 60000);
+    return out.length ? out : [t0, t1];
+  }
+
+  function renderChart(list) {
+    var box = $('#chart'); if (!box) return;
+    var series = list.slice(0, 8).map(function (p, i) {
+      return { p: p, color: CH[i % CH.length], pts: logRows.filter(function (r) { return r.pid === p.id; }) };
+    });
+    var sig = chartState + '|' + logRows.length + '|' + list.length + '|' +
+      series.map(function (s) { return s.p.id + ':' + s.p.count + ':' + dn(s.p); }).join(',');
+    if (sig === chartSig) return;
+    chartSig = sig;
+    box.replaceChildren();
+    function chartNote(msg) { box.append(h("p", { class: "chart-note" }, msg)); }
+    if (chartState === 'error') { note('Não consegui carregar o gráfico agora.'); return; }
+    if (chartState !== 'ok') { chartNote("Carregando o gráfico…"); return; }
+    if (!series.some(function (s) { return s.pts.length >= 2; })) {
+      chartNote("Esta contagem não tem linha do tempo, porque o histórico começou a ser gravado depois dela. Nas próximas, o gráfico aparece aqui.");
+      return;
+    }
+
+    var W = 360, H = 230, L = 36, R = 14, T = 12, B = 28;
+    var t0 = Infinity, t1 = -Infinity, ymax = 0;
+    series.forEach(function (s) {
+      s.pts.forEach(function (r) { if (r.t < t0) t0 = r.t; if (r.t > t1) t1 = r.t; if (r.v > ymax) ymax = r.v; });
+    });
+    if (t1 - t0 < 60000) t1 = t0 + 60000;
+    var ystep = niceStep(Math.max(ymax, 1), 5);
+    var ytop = Math.max(ystep, Math.ceil(ymax / ystep) * ystep);
+    function X(t) { return L + (t - t0) / (t1 - t0) * (W - L - R); }
+    function Y(v) { return T + (1 - v / ytop) * (H - T - B); }
+
+    var svg = svgEl('svg', { class: 'chart-svg', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Gráfico de linhas com as peças de cada pessoa ao longo do horário' });
+    for (var v = 0; v <= ytop; v += ystep) {
+      svg.append(svgEl('line', { class: 'grid', x1: L, x2: W - R, y1: Y(v), y2: Y(v) }));
+      var yl = svgEl('text', { class: 'axis', x: L - 6, y: Y(v) + 3.5, 'text-anchor': 'end' }); yl.textContent = String(v);
+      svg.append(yl);
+    }
+    timeTicks(t0, t1).forEach(function (t) {
+      var x = X(t);
+      svg.append(svgEl('line', { class: 'tick', x1: x, x2: x, y1: H - B, y2: H - B + 4 }));
+      var xl = svgEl('text', { class: 'axis', x: x, y: H - 10, 'text-anchor': x > W - 26 ? 'end' : (x < L + 12 ? 'start' : 'middle') });
+      xl.textContent = hhmm(t);
+      svg.append(xl);
+    });
+    series.slice().reverse().forEach(function (s) {
+      if (!s.pts.length) return;
+      var d = 'M' + X(s.pts[0].t).toFixed(1) + ' ' + Y(s.pts[0].v).toFixed(1);
+      for (var k = 1; k < s.pts.length; k++) d += ' H' + X(s.pts[k].t).toFixed(1) + ' V' + Y(s.pts[k].v).toFixed(1);
+      d += ' H' + X(t1).toFixed(1);
+      svg.append(svgEl('path', { d: d, fill: 'none', stroke: s.color, 'stroke-width': 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      svg.append(svgEl('circle', { cx: X(t1), cy: Y(s.pts[s.pts.length - 1].v), r: 3, fill: s.color }));
+    });
+
+    var legend = h('ul', { class: 'chart-legend' });
+    series.forEach(function (s) {
+      legend.append(h('li', null, h('i', { class: 'swatch', style: 'background:' + s.color }), h('span', { class: 'name' }, dn(s.p)), h('b', null, String(s.p.count))));
+    });
+    box.append(svg, legend);
+    if (list.length > 8) box.append(h('p', { class: 'chart-more' }, 'Mostrando os 8 primeiros colocados.'));
+  }
+
   /* ---------- confetti ---------- */
   function confetti() {
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -518,7 +631,7 @@
     sb.channel('sushi-rank')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, applyChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game' }, function (p) {
-        if (p['new'] && p['new'].status) { game = { status: p['new'].status === 'ended' ? 'ended' : 'live' }; if (game.status === 'live') { stageSig = ''; confettiDone = false; } render(); }
+        if (p['new'] && p['new'].status) { game = { status: p['new'].status === 'ended' ? 'ended' : 'live' }; if (game.status === 'live') { stageSig = ''; confettiDone = false; } render(); if (game.status === 'ended') loadLog(); }
       })
       .subscribe(function (status) { if (status === 'SUBSCRIBED') loadAll(); });
 
